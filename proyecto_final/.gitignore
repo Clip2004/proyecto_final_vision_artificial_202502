@@ -21,6 +21,7 @@ Thumbs.db
 *.pth
 *.weights
 *.onnx
+*.pkl
 
 # Resultados de entrenamiento YOLO / UltraLytics
 runs/
@@ -33,6 +34,7 @@ yolo_runs/
 *.avi
 *.mov
 *.mkv
+*.jpg
 
 # ==== MISC ====
 *.zip
