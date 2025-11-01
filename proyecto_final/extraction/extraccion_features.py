@@ -6,15 +6,16 @@ import xlsxwriter
 from math import pi
 
 ## DIR NAMES
-inputfolder = 'tarea_banda/banda_modelos/clases_neural_network_COPY'
-subfolders = ['clase_argollas', 'clase_ochos', 'clase_Tensores', 'clase_Z_1', 'clase_Z_2']
+inputfolder = 'proyecto_final/contornos_database'
+
+subfolders = ['argollas', 'tensores', 'zetas']
 labels = {name: idx for idx, name in enumerate(subfolders)}
 ## DIR NAMES
 
 
 row = 0
 col = 1
-workbook = xlsxwriter.Workbook('tarea_banda/banda_modelos/charact_argollas.xlsx')
+workbook = xlsxwriter.Workbook('proyecto_final/extraction/charact_familias.xlsx')
 worksheet = workbook.add_worksheet('patterns')
 
 
@@ -60,16 +61,29 @@ def preprocess_digit(img, output_size=(128, 128)):
 def extract_chars():
     global row, col
     for j in range(len(subfolders)):
-        for imgpath in glob(inputfolder + '/' + subfolders[j] + f'/*.png'):
-            img = cv2.imread(imgpath, 1)
-            img_contour_drawn = img.copy()
-            imgcopy = img.copy()
-            # # resize img
-            newsize = res_using_ar(imgcopy, 0.15)
-            imgcopy = cv2.resize(imgcopy, newsize)
-            img_bin = cv2.inRange(imgcopy, (0,0,19), (255,255,255))
+        print("Buscando imágenes en:", inputfolder + '/' + subfolders[j] + f'/*.jpg')
+
+        for imgpath in glob(inputfolder + '/' + subfolders[j] + f'/*.jpg'):
+
+            print("Leyendo:", imgpath)
+
+            # ✅ leer directamente en escala de grises
+            img_gray = cv2.imread(imgpath, cv2.IMREAD_GRAYSCALE)
+
+            if img_gray is None:
+                print(f"Error leyendo: {imgpath}")
+                continue
             
-            # img_bin = preprocess_digit(img, output_size=(5, 5))
+            # Hacemos copia para dibujar y procesar
+            img = cv2.cvtColor(img_gray, cv2.COLOR_GRAY2BGR)  # solo para dibujar contornos
+            img_contour_drawn = img.copy()
+            
+            # ✅ Resize (manteniendo la lógica original)
+            newsize = res_using_ar(img_gray, 0.15)
+            imgcopy = cv2.resize(img_gray, newsize)
+
+            # ✅ Como ya viene binarizada, usamos la imagen tal cual
+            img_bin = imgcopy  
 
 
             conts = cv2.findContours(img_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[0]
@@ -111,6 +125,27 @@ def extract_chars():
             x13 = w/x1_area
             x14 = h/x1_area
 
+            # num contornos
+
+            conts_all = cv2.findContours(img_bin, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)[0]
+            x15 = len(conts_all)   
+
+            # jerarquia
+            hierarchy = cv2.findContours(img_bin, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)[1]
+            x16 = np.sum(hierarchy[:,:,3] != -1)
+
+            # scores de simetria horizontal y vertical
+            x17 = np.mean(img_bin == np.flipud(img_bin))
+            x18   = np.mean(img_bin == np.fliplr(img_bin))
+
+            # zone_features = []
+            # cell_size = 5
+
+            # for y in range(0, img_bin.shape[0], cell_size):
+            #     for x in range(0, img_bin.shape[1], cell_size):
+            #         roi_zone = img_bin[y:y+cell_size, x:x+cell_size]
+            #         density = cv2.countNonZero(roi_zone) / (cell_size * cell_size)
+            #         zone_features.append(density)
             # store the neural network inputs in a numpy array
             vector_patterns = np.array([
                                         x1_area, 
@@ -124,11 +159,20 @@ def extract_chars():
                                         x9,
                                         x10,
                                         x11,
-                                        # x12,
-                                        # x13,
-                                        # x14,
+                                        x12,
+                                        x13,
+                                        x14,
+                                        x15,
+                                        x16,
+                                        x17,
+                                        x18,
+                                        
                                         ], 
                                         dtype=np.float32)
+            
+            #zone_features = np.array(zone_features, dtype=np.float32)
+
+            # vector_patterns = np.concatenate([vector_patterns, zone_features])
 
             for pattern in vector_patterns:
                 worksheet.write(row, 0, labels[subfolders[j]])
@@ -141,7 +185,9 @@ def extract_chars():
             # dst = cv2.resize(roibin, (320, 480))
             cv2.imshow('ROI', img_bin)
             cv2.imshow('img', img_contour_drawn)
-            cv2.waitKey(5)
+            key = cv2.waitKey(0) & 0xFF  # Espera indefinidamente hasta que se presione una tecla
+            # if key == ord('q'):  # Si se presiona 'q'
+            #     break  # Sale del bucle
 
     cv2.destroyAllWindows()
     workbook.close()

@@ -1,1 +1,41 @@
-video_piezas.mp4
+# ==== PYTHON ====
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info
+*.log
+
+# ==== IDE / EDITOR ====
+.vscode/
+.idea/
+
+# ==== SYSTEM ====
+.DS_Store
+Thumbs.db
+
+# ==== VISION / DATA ====
+# Pesos de modelos
+
+*.pth
+*.weights
+*.onnx
+
+# Resultados de entrenamiento YOLO / UltraLytics
+runs/
+yolo_runs/
+
+# Datasets grande
+
+# Videos / capturas largas
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# ==== MISC ====
+*.zip
+*.rar
+*.tar
+*.tar.gz
