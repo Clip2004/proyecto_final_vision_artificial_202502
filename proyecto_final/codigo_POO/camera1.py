@@ -30,6 +30,14 @@ class RunCamera(threading.Thread):
         self.min_detections = 4     # Mínimo de detecciones para considerar válida
         self.candidate_timeout = 100  # Frames después de los cuales se limpia un candidato
         self.last_seen_candidates = {}  # {placa_text: frame_number}
+
+        self.line1_x = 850  # línea izquierda
+        self.line2_x = 900  # línea derecha
+        self.ebilla_detected = False
+        self.object_counter = 0
+        self.last_centroid = None
+        self.min_area_threshold = 800  # ajustable
+
         
 
         self.modo_familias = False
@@ -69,10 +77,11 @@ class RunCamera(threading.Thread):
             # Rutas de los modelos de TODAS LAS CARACTERÍSTICAS
             familias_model_path = os.path.join(base_path, 'model_familias_100.pkl')
             familias_model_scaler_path = os.path.join(base_path, 'scaler_familias_100.pkl')
+            familias_model_mlp_path = os.path.join(base_path, 'best_model_1_fa.pkl')
            
             
             # Verificar que los archivos existen
-            required_files = [familias_model_path,familias_model_scaler_path]
+            required_files = [familias_model_path,familias_model_scaler_path,familias_model_mlp_path]
             
             missing_files = [f for f in required_files if not os.path.exists(f)]
             if missing_files:
@@ -85,6 +94,7 @@ class RunCamera(threading.Thread):
             print(" Cargando modelo de FAMILIAS...")
             self.familias_model = joblib.load(familias_model_path)
             self.familias_model_scaler = joblib.load(familias_model_scaler_path)
+            self.familias_model_mlp = joblib.load(familias_model_mlp_path)
 
             print(f" Familias: Cargado - ID: {id(self)}")
             
@@ -136,6 +146,7 @@ class RunCamera(threading.Thread):
             Hu = cv2.HuMoments(M)
             x5, x6, x7, x8, x9, x10, x11 = [Hu[i][0] for i in range(7)]
 
+            roi_resized = cv2.resize(img_roi_bin, (128, 128), interpolation=cv2.INTER_NEAREST)
             # Densidad 1/4 altura
             H = img_roi_bin.shape[0]
             x12 = np.sum(img_roi_bin[H//4, :] / 255) / (x1_area + 1e-6)
@@ -146,11 +157,11 @@ class RunCamera(threading.Thread):
             x14 = h / (w + 1e-6)
 
             # Contornos internos en la ROI
-            conts_all, hierarchy2 = cv2.findContours(img_roi_bin, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            conts_all, hierarchy2 = cv2.findContours(roi_resized, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
             # Simetría vertical y horizontal
-            x15 = np.mean(img_roi_bin == np.flipud(img_roi_bin))
-            x16 = np.mean(img_roi_bin == np.fliplr(img_roi_bin))
+            x15 = np.mean(roi_resized == np.flipud(roi_resized))
+            x16 = np.mean(roi_resized == np.fliplr(roi_resized))
 
             # Área relativa de huecos internos
             num_interior = 0
@@ -230,8 +241,8 @@ class RunCamera(threading.Thread):
             # ----- MODO FAMILIAS → modelo familia -----
             if self.modo_familias:
 
-                features = self.familias_model_scaler.transform(features)
-                prediction = self.familias_model.predict(features)[0]  # modelo familias
+                # features = self.familias_model_scaler.transform(features)
+                prediction = self.familias_model_mlp.predict(features)[0]  # modelo familias
                 clases = {0:"ARGOLLA", 1:"TENSOR", 2:"ZETA"}
 
                 print("Features:", features[0][:5])  # solo los primeros 5 para ver
@@ -295,14 +306,46 @@ class RunCamera(threading.Thread):
         conts, _ = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         print(f"🔍 Contornos detectados: {len(conts)}")
 
+
+        img_bin_or = mask.copy()
+
+        contours_or, _ = cv2.findContours(img_bin_or, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        filtered_contours_or = [c for c in contours_or if cv2.contourArea(c) > self.min_area_threshold]
+
+        if len(filtered_contours_or) > 0:
+            maxcont_or = max(filtered_contours_or, key=cv2.contourArea)
+
+            M_or = cv2.moments(maxcont_or)
+            if M_or["m00"] != 0: 
+                cx = int(M_or["m10"] / M_or["m00"])
+                cy = int(M_or["m01"] / M_or["m00"])
+
+                # Dibujar contorno y centro
+                cv2.drawContours(annotated, [maxcont_or], -1, (0, 255, 0), 2)
+                cv2.circle(annotated, (cx, cy), 5, (0,0,255), -1)
+
+                # Mostrar info
+                cv2.putText(annotated, f"Obj {self.object_counter}", (cx-20, cy-10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,255), 2)
+
+                # --- LOGICA DE LINEAS ANTIDUPLICADO ---
+                if cx > self.line2_x and not self.ebilla_detected:
+                    self.ebilla_detected = True
+
+                elif cx < self.line1_x and self.ebilla_detected:
+                    self.object_counter += 1
+                    self.ebilla_detected = False
+                    print(f"✅ Objeto #{self.object_counter} contado")
+
+        # Dibujar líneas de referencia
+        cv2.line(annotated, (self.line1_x, 0), (self.line1_x, frame.shape[0]), (255, 0, 0), 2)
+        cv2.line(annotated, (self.line2_x, 0), (self.line2_x, frame.shape[0]), (255, 0, 0), 2)
+
         detected_any = False
 
         for cnt in conts:
             area = cv2.contourArea(cnt)
             print(f"   ➜ Contorno área: {area}")
-
-
-
 
             if area < 2000:   
                 print(f"   ❌ Contorno ignorado (área pequeña)")
@@ -316,6 +359,8 @@ class RunCamera(threading.Thread):
 
             roi = mask[y:y+h, x:x+w]
 
+            cv2.imshow("ROI original", roi)
+
             if roi.size == 0:
                 print("❌ ROI vacío, saltando")
                 continue
@@ -324,16 +369,18 @@ class RunCamera(threading.Thread):
 
             print("✅ ROI redimensionado")
             print(self.modo_familias, self.modo_tamanos, self.modo_mixto)
+            cv2.imshow("ROI" , roi_resized)
+            cv2.waitKey(2)
 
             # --- EXTRAER FEATURES Y CLASIFICAR ---
-            conts_roi, _ = cv2.findContours(roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            conts_roi, _ = cv2.findContours(roi_resized, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             if len(conts_roi)==0:
                 print("⚠️ No contorno dentro del ROI")
                 continue
 
             cnt_roi = max(conts_roi, key=cv2.contourArea)
 
-            nombre_clase = self.predict_character_familias(roi_resized, cnt_roi)
+            nombre_clase = self.predict_character_familias(roi_resized, cnt)
 
             print(f"🔎 Resultado predict_character_familias: {nombre_clase}")
 

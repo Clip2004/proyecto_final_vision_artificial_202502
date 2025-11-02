@@ -83,6 +83,6 @@ avg = sum(accur_list)/len(accur_list)
 print('---------------------')     
 print(f'avg = {round(avg, 2)}%')
 
-# if best_model is not None:
-#     joblib.dump(best_model, 'proyecto_final/train_familias/best_model_1_fa.pkl')
-#     print(f'Best model saved with accuracy = {round(best_accuracy*100, 2)}%')
+if best_model is not None:
+    joblib.dump(best_model, 'proyecto_final/train_familias/best_model_1_fa.pkl')
+    print(f'Best model saved with accuracy = {round(best_accuracy*100, 2)}%')
