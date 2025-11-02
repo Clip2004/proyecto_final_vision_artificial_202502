@@ -24,7 +24,10 @@ class Application(ttk.Frame):
         
         self.createWidgets()
         self.createFrames()
-        
+        self.modo_familias = False
+        self.modo_tamanos = False
+        self.modo_mixto = False
+                
         self.master.mainloop()
 
     def createFrames(self):
@@ -190,6 +193,11 @@ class Application(ttk.Frame):
 
     def showFamilias(self):
         """Muestra los contadores por tipo de herraje."""
+
+        self.modo_familias = True
+        self.modo_tamanos = False
+        self.modo_mixto = False
+        self.camera_1.modo_familias = True
         self.clearDynamicElements()
         labels_texts = [
             "Argollas detectadas: 0",
@@ -212,6 +220,11 @@ class Application(ttk.Frame):
 
     def showTamanos(self):
         """Muestra botones para las categorías de tamaño."""
+
+        self.modo_familias = False
+        self.modo_tamanos = True
+        self.modo_mixto = False
+        self.camera_1.modo_tamanos = True
         self.clearDynamicElements()
         sizes = ["Tamaño S", "Tamaño M", "Tamaño L", "Tamaño XL"]
         start_x = 825
@@ -225,6 +238,10 @@ class Application(ttk.Frame):
 
     def showMixto(self):
         """Muestra los contadores de familias y sus tamaños en dos columnas."""
+        self.modo_familias = False
+        self.modo_tamanos = False
+        self.modo_mixto = True
+        self.camera_1.modo_mixto = True
         self.clearDynamicElements()
 
         familias_left = ["Argollas", "Tensores"]

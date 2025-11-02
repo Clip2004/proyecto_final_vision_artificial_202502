@@ -39,8 +39,8 @@ if __name__ == '__main__':
         x_pca = model_pca.fit_transform(x_sc)
 
         # Guardar modelos entrenados
-        joblib.dump(model_sc, 'proyecto_final/train_familias/scaler_model_1_fa.pkl')
-        joblib.dump(model_pca, 'proyecto_final/train_familias/pca_model_1_fa.pkl')
+        # joblib.dump(model_sc, 'proyecto_final/train_familias/scaler_model_1_fa.pkl')
+        # joblib.dump(model_pca, 'proyecto_final/train_familias/pca_model_1_fa.pkl')
 
         X_train, X_test, y_train, y_test = train_test_split(x_pca, y, test_size=0.4, random_state=42, stratify=y)        
 
@@ -83,6 +83,6 @@ avg = sum(accur_list)/len(accur_list)
 print('---------------------')     
 print(f'avg = {round(avg, 2)}%')
 
-if best_model is not None:
-    joblib.dump(best_model, 'proyecto_final/train_familias/best_model_1_fa.pkl')
-    print(f'Best model saved with accuracy = {round(best_accuracy*100, 2)}%')
+# if best_model is not None:
+#     joblib.dump(best_model, 'proyecto_final/train_familias/best_model_1_fa.pkl')
+#     print(f'Best model saved with accuracy = {round(best_accuracy*100, 2)}%')
