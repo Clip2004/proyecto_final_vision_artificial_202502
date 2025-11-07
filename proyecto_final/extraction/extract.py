@@ -3,6 +3,8 @@ import sys
 import os
 from datetime import datetime
 
+import yaml
+from codigos import *
 """
 extract.py
 Encuentra contornos en un vídeo binarizado, pausa cuando se detecta al menos
@@ -12,6 +14,7 @@ con las teclas:
     Z / z -> zetas
     O / o -> ochos
     A / a -> argollas
+    R / r -> zetasr
 
 Para CONTINUAR (sin guardar) presiona 'n'
 Salir con 'q' o ESC.
@@ -40,12 +43,24 @@ def save_largest_contour(frame, contour, out_dir, label_letter):
     save_path = os.path.join(out_dir, filename)
     cv2.imwrite(save_path, roi)
     return save_path
-
+def load_config(path):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        cfg = {}
+    hsv_cfg = (cfg.get("hsv") or {})
+    defaults = {"Hmin": 0, "Smin": 0, "Vmin": 70, "Hmax": 255, "Smax": 255, "Vmax": 255}
+    for k, v in defaults.items():
+        hsv_cfg.setdefault(k, v)
+    use_trackbars = cfg.get("use_trackbars", True)
+    return hsv_cfg, use_trackbars
 def main():
     # Valores por defecto
-    default_video = os.path.join("proyecto_final", "video_piezas_binarizado.mp4")
+    default_video = os.path.join("proyecto_final", "video_piezas.mp4")
     default_min_area = 15000.0
-
+    CONFIG_PATH = r"proyecto_final\masking\hsv_config.yaml"
+    hsv_cfg, use_trackbars = load_config(CONFIG_PATH)
     # Leer argumentos sencillos
     video_path = sys.argv[1] if len(sys.argv) > 1 else default_video
     try:
@@ -71,6 +86,8 @@ def main():
         'z': os.path.join(out_base, "zetas"),
         'o': os.path.join(out_base, "ochos"),
         'a': os.path.join(out_base, "argollas"),
+        'r': os.path.join(out_base, "zetasr"),
+        
     }
     for p in folders.values():
         ensure_dir(p)
@@ -90,6 +107,7 @@ def main():
     print("  Z/z -> guardar en 'zetas'")
     print("  O/o -> guardar en 'ochos'")
     print("  A/a -> guardar en 'argollas'")
+    print("  R/r -> guardar en 'zetasr'")
     print("  n   -> continuar sin guardar")
     print("  q / ESC -> salir\n")
 
@@ -97,34 +115,30 @@ def main():
         ret, frame = cap.read()
         if not ret:
             break
+        frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5, interpolation=cv2.INTER_AREA)
+        frame_HSV = transform_BGR_HSV(frame.copy())
+        frame_binary = binaryColor(frame_HSV,
+                                   hsv_cfg["Hmin"], hsv_cfg["Smin"], hsv_cfg["Vmin"],
+                                   hsv_cfg["Hmax"], hsv_cfg["Smax"], hsv_cfg["Vmax"])
 
-        # Asegurar imagen en gris/binarizada
-        if len(frame.shape) == 3:
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = frame.copy()
-
-        # Si no está perfectamente binarizada, aplicar umbral fijo
-        _, bw = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
-
+        # Para mostrar con colores (dibujar contornos/texto) convertimos a BGR.
+        # Seguimos usando frame_binary (máscara) para detectar contornos.
+        frame_vis = cv2.cvtColor(frame_binary, cv2.COLOR_GRAY2BGR)
         # Encontrar contornos
-        contours, _ = cv2.findContours(bw, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(frame_binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         valid = [c for c in contours if cv2.contourArea(c) >= min_area]
-
-        # Preparar imagen para mostrar (BGR)
-        vis = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR) if len(frame.shape) == 2 else frame.copy()
 
         # Dibujar contornos válidos y bounding boxes
         for c in valid:
-            cv2.drawContours(vis, [c], -1, (0, 255, 0), 2)
+            cv2.drawContours(frame_vis, [c], -1, (0, 255, 0), 2)
             x, y, w, h = cv2.boundingRect(c)
-            cv2.rectangle(vis, (x, y), (x + w, y + h), (0, 128, 255), 2)
+            cv2.rectangle(frame_vis, (x, y), (x + w, y + h), (0, 128, 255), 2)
 
         # Información en pantalla
         text = f"Detectados: {len(valid)} (min_area={min_area}) - Presiona 'q' para salir"
-        cv2.putText(vis, text, (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2, cv2.LINE_AA)
+        cv2.putText(frame_vis, text, (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2, cv2.LINE_AA)
 
-        cv2.imshow(win, vis)
+        cv2.imshow(win, frame_vis)
 
         # Si se detectó al menos uno, pausar hasta que se presione opción
         if len(valid) > 0:
@@ -132,8 +146,8 @@ def main():
             largest = max(valid, key=cv2.contourArea)
             area_val = cv2.contourArea(largest)
             hint = "Pausado: T/Z/O/A=guardar, n=continuar, q=salir"
-            cv2.putText(vis, hint, (10, vis.shape[0]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,255), 2, cv2.LINE_AA)
-            cv2.imshow(win, vis)
+            cv2.putText(frame_vis, hint, (10, frame_vis.shape[0]-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,255), 2, cv2.LINE_AA)
+            cv2.imshow(win, frame_vis)
 
             while True:
                 key = cv2.waitKey(0) & 0xFF
