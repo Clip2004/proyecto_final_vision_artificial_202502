@@ -40,7 +40,7 @@ def augment_image(image):
     augmented_images.append(image.copy())
 
     # 2. ROTACIONES (más ángulos)
-    rotation_angles = [-5, -4, -3, -2, -1, 1, 2, 3, 4, 5, -7, 7, -6, 6]
+    rotation_angles = [-15,-10, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, -7, 7, -6, 6, 10, 15]
     for angle in rotation_angles:
         M = cv2.getRotationMatrix2D(center, angle, 1.0)
         rotated = cv2.warpAffine(image, M, (w, h), borderValue=0)
@@ -357,10 +357,10 @@ OUTPUT_XLSX = os.path.join(HERE, "contornos_features_aug.xlsx")
 CLASSES = ["argollas", "zetas", "tensores","zetasr"]
 
 # Número máximo de aumentos por pasada por imagen (puede repetirse en pasadas posteriores)
-MAX_AUG_PER_IMAGE = 20
+MAX_AUG_PER_IMAGE = 5
 
 # Número objetivo de muestras por clase en la base aumentada
-TARGET_PER_CLASS = 1000
+TARGET_PER_CLASS = 2000
 
 # Evita loops infinitos: máximo de pasadas sobre las originales para generar augmentaciones
 MAX_PASSES = 50

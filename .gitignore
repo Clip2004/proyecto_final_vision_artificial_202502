@@ -1,0 +1,10 @@
+video_piezas.mp4
+contornos_database/
+contornos_database_aug/
+original_frames/
+output_labeled/
+train/
+test/
+output_labeled_aug/
+yolo.zip
+
