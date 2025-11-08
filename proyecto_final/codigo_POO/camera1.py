@@ -40,9 +40,9 @@ class RunCamera(threading.Thread):
 
         
 
-        self.modo_familias = False
-        self.modo_tamanos = False
-        self.modo_mixto = False
+        # self.modo_familias = False
+        # self.modo_tamanos = False
+        # self.modo_mixto = False
 
         self.argolla_model = None
         self.tensor_model = None
@@ -218,7 +218,7 @@ class RunCamera(threading.Thread):
                 # Para letras: usar características mejoradas
                 features = self.extract_features_familias(char_image, cnt)
 
-            if self.modo_mixto:
+            elif self.modo_mixto:
 
                 features = self.extract_features_familias(char_image, cnt)
 
@@ -241,15 +241,15 @@ class RunCamera(threading.Thread):
             # ----- MODO FAMILIAS → modelo familia -----
             if self.modo_familias:
 
-                # features = self.familias_model_scaler.transform(features)
-                prediction = self.familias_model_mlp.predict(features)[0]  # modelo familias
+                features = self.familias_model_scaler.transform(features)
+                prediction = self.familias_model.predict(features)[0]  # modelo familias
                 clases = {0:"ARGOLLA", 1:"TENSOR", 2:"ZETA"}
 
                 print("Features:", features[0][:5])  # solo los primeros 5 para ver
                 print("Pred:", prediction)
                 return clases.get(int(prediction), None)
             
-            if self.modo_mixto:
+            elif self.modo_mixto:
 
                 features = self.familias_model_scaler.transform(features)
                 prediction = self.familias_model.predict(features)[0]  # modelo familias
@@ -380,7 +380,10 @@ class RunCamera(threading.Thread):
 
             cnt_roi = max(conts_roi, key=cv2.contourArea)
 
-            nombre_clase = self.predict_character_familias(roi_resized, cnt)
+            nombre_clase = self.predict_character_familias(roi_resized, cnt_roi)
+
+            print(f"🧩 ROI shape: {roi_resized.shape}, contorno área: {cv2.contourArea(cnt_roi)}")
+
 
             print(f"🔎 Resultado predict_character_familias: {nombre_clase}")
 

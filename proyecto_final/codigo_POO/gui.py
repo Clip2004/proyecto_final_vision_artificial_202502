@@ -123,6 +123,9 @@ class Application(ttk.Frame):
         self.camera_1 = camera1.RunCamera(src=video_path, name="Detector de Placas")
         self.camera_1.start()
         self.is_camera_running = True
+        self.camera_1.modo_familias = self.modo_familias  # sincroniza el estado
+        self.camera_1.modo_tamanos = self.modo_tamanos  # sincroniza el estado
+        self.camera_1.modo_mixto = self.modo_mixto  # sincroniza el estado
         self.btnInitCamera.config(state=tk.DISABLED)
         self.btnStopCamera.config(state=tk.NORMAL)
         
@@ -198,6 +201,8 @@ class Application(ttk.Frame):
         self.modo_tamanos = False
         self.modo_mixto = False
         self.camera_1.modo_familias = True
+        self.camera_1.modo_tamanos = False
+        self.camera_1.modo_mixto = False
         self.clearDynamicElements()
         labels_texts = [
             "Argollas detectadas: 0",
@@ -224,9 +229,11 @@ class Application(ttk.Frame):
         self.modo_familias = False
         self.modo_tamanos = True
         self.modo_mixto = False
+        self.camera_1.modo_familias = False
         self.camera_1.modo_tamanos = True
+        self.camera_1.modo_mixto = False
         self.clearDynamicElements()
-        sizes = ["Tamaño S", "Tamaño M", "Tamaño L", "Tamaño XL"]
+        sizes = ["Tamaño argollas", "Tamaño tensores", "Tamaño zetas", "Tamaño zetas R"]
         start_x = 825
         start_y = 550
         spacing_y = 50
@@ -241,7 +248,10 @@ class Application(ttk.Frame):
         self.modo_familias = False
         self.modo_tamanos = False
         self.modo_mixto = True
+        self.camera_1.modo_familias = False
+        self.camera_1.modo_tamanos = False
         self.camera_1.modo_mixto = True
+
         self.clearDynamicElements()
 
         familias_left = ["Argollas", "Tensores"]

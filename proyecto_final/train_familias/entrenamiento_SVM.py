@@ -15,7 +15,6 @@ y = df.iloc[:,0]
 x = df.iloc[:,1:]
 
 scaler = StandardScaler()
-joblib.dump(scaler, "proyecto_final/train_familias/scaler_familias_100.pkl")
 x_s = scaler.fit_transform(x)
 
 x_train, x_test , y_train, y_test = train_test_split(x_s,y, test_size=0.1, random_state = 42)
@@ -27,4 +26,5 @@ y_predict  = model_svm.predict(x_test)
 print("accuracy:" , accuracy_score(y_test, y_predict))
 print(classification_report(y_test,y_predict, zero_division=0))
 
+joblib.dump(scaler, "proyecto_final/train_familias/scaler_familias_100.pkl")
 joblib.dump(model_svm,"proyecto_final/train_familias/model_familias_100.pkl")
