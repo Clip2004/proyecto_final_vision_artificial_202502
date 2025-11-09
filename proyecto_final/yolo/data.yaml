@@ -1,0 +1,9 @@
+path: proyecto_final_vision_artificial_202502/proyecto_final/yolo
+train: train
+val: test
+nc: 4
+names: 
+  0:"argolla"
+  1:"zeta"
+  2:"tensor"
+  3:"zetaRedonda"

@@ -1,0 +1,51 @@
+video_piezas.mp4
+contornos_database/
+contornos_database_aug/
+original_frames/
+output_labeled/
+train/
+test/
+output_labeled_aug/
+yolo.zip
+
+# ==== PYTHON ====
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info
+*.log
+
+# ==== IDE / EDITOR ====
+.vscode/
+.idea/
+
+# ==== SYSTEM ====
+.DS_Store
+Thumbs.db
+
+# ==== VISION / DATA ====
+# Pesos de modelos
+
+*.pth
+*.weights
+*.onnx
+
+
+
+
+# Datasets grande
+
+# Videos / capturas largas
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.jpg
+
+# ==== MISC ====
+*.zip
+*.rar
+*.tar
+*.tar.gz

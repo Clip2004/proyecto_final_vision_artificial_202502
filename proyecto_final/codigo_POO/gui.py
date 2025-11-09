@@ -6,7 +6,7 @@ import tkinter.font as font
 from tkinter import ttk
 import cv2
 #  import camera
-import camera1
+import camera2
 import numpy as np
 
 class Application(ttk.Frame):
@@ -27,6 +27,7 @@ class Application(ttk.Frame):
         self.modo_familias = False
         self.modo_tamanos = False
         self.modo_mixto = False
+
                 
         self.master.mainloop()
 
@@ -89,8 +90,11 @@ class Application(ttk.Frame):
         tk.Label(self.master, text="Herraje Detectado", font=self.fontLabelText).place(x=825, y=20)
 
         # Variables para mostrar información Labels estaticos 
-        self.plate_count_var = tk.StringVar(value="Herraje detectadas: 0")
+        self.plate_count_var = tk.StringVar(value="Herrajes detectados: 0")
         self.detection_label_var = tk.StringVar(value="Última Detección: --")
+
+        self.defective_var = tk.StringVar(value="Defectuosas detectadas: 0")
+
 
         tk.Label(self.master, textvariable=self.plate_count_var, font=self.fontCounters, fg="blue").place(x=825, y=510)
         tk.Label(self.master, textvariable=self.detection_label_var, font=self.fontCounters).place(x=825, y=480)
@@ -98,6 +102,10 @@ class Application(ttk.Frame):
         # === Inicializar contenedores de labels/botones dinámicos ===
         self.dynamic_labels = []
         self.dynamic_buttons = []
+        self.family_labels = {}     # {"Argollas": StringVar, "Tensores": StringVar, ...}
+        self.mixed_labels = {}      # {"Argollas": {"S": StringVar, ...}, ...}  
+
+
 
         # === Botones ===
         self.btnInitCamera = tk.Button(self.master, text='Iniciar Detección', font=self.fontLabelText, bg="#06542a", fg='#ffffff', width=22,height=4, command=self.initCamera)
@@ -107,10 +115,8 @@ class Application(ttk.Frame):
         self.btnStopCamera.place(x=300, y=670)
         
         self.btnFamilias = tk.Button(self.master, text='Familias', font=self.fontLabelText, bg="#3786e0", fg='#ffffff', width=25, height=3,command=self.showFamilias)
-        self.btnFamilias.place(x=1250, y=50)
+        self.btnFamilias.place(x=1250, y=125)
 
-        self.btnTamanos = tk.Button(self.master, text='Tamaños', font=self.fontLabelText, bg="#3786e0", fg='#ffffff', width=25,height=3, command=self.showTamanos)
-        self.btnTamanos.place(x=1250, y=125)
 
         self.btnMixto = tk.Button(self.master, text='Mixto', font=self.fontLabelText, bg="#3786e0", fg='#ffffff', width=25, height=3,command=self.showMixto)
         self.btnMixto.place(x=1250, y=200)
@@ -120,11 +126,10 @@ class Application(ttk.Frame):
         
         # Cambiar esta ruta por tu video
         video_path = r'proyecto_final\video_piezas.mp4'
-        self.camera_1 = camera1.RunCamera(src=video_path, name="Detector de Placas")
+        self.camera_1 = camera2.RunCamera(src=video_path, name="Detector de Placas")
         self.camera_1.start()
         self.is_camera_running = True
         self.camera_1.modo_familias = self.modo_familias  # sincroniza el estado
-        self.camera_1.modo_tamanos = self.modo_tamanos  # sincroniza el estado
         self.camera_1.modo_mixto = self.modo_mixto  # sincroniza el estado
         self.btnInitCamera.config(state=tk.DISABLED)
         self.btnStopCamera.config(state=tk.NORMAL)
@@ -153,19 +158,33 @@ class Application(ttk.Frame):
             self.labelVideo_detection.image = self.imgTk_detection_placeholder
 
         # Actualizar contadores y etiquetas
-        self.plate_count_var.set(f"Placas únicas: {self.camera_1.plate_count}")
+        self.plate_count_var.set(f"Errajes únicos: {self.camera_1.object_counter}")
         if self.camera_1.last_detection_label:
             self.detection_label_var.set(f"Última: {self.camera_1.last_detection_label}")
         else:
             self.detection_label_var.set("Última Detección: --")
 
         # --- AGREGAR PARA DEBUG (opcional) ---
-        if hasattr(self.camera_1, 'get_detection_stats'):
-            stats = self.camera_1.get_detection_stats()
-            #if len(stats['detected_plates']) > 1:
-                # print(f" Placas detectadas: {stats['detected_plates']}")
+     # --- Actualizar contadores dinámicos por familia ---
+        if hasattr(self.camera_1, 'object_counts') and self.modo_familias:
+            for familia, count in self.camera_1.object_counts.items():
+                if familia in self.family_labels:
+                    self.family_labels[familia].set(f"{familia} detectadas: {count}")
 
-        self.labelVideo_1.after(10, self.showVideo)
+        # --- Actualizar contadores mixtos (familia + tamaño) ---
+        if hasattr(self.camera_1, 'size_counts') and self.modo_mixto:
+            for fam, sizes in self.camera_1.size_counts.items():
+                if fam in self.mixed_labels:
+                    for size, count in sizes.items():
+                        if size in self.mixed_labels[fam]:
+                            self.mixed_labels[fam][size].set(f"{size}: {count}")
+            
+        if hasattr(self.camera_1, 'object_counts') and "Piezas defectuosas" in self.camera_1.object_counts:
+            count_def = self.camera_1.object_counts["Piezas defectuosas"]
+            if hasattr(self, 'defective_var'):
+                self.defective_var.set(f"Defectuosas detectadas: {count_def}")
+
+        self.labelVideo_1.after(30, self.showVideo)
 
     def convertToFrameTk(self, frame):
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -195,108 +214,81 @@ class Application(ttk.Frame):
         self.dynamic_buttons.clear()
 
     def showFamilias(self):
-        """Muestra los contadores por tipo de herraje."""
-
+        """Muestra los contadores por tipo de herraje (familias principales)."""
         self.modo_familias = True
-        self.modo_tamanos = False
         self.modo_mixto = False
         self.camera_1.modo_familias = True
-        self.camera_1.modo_tamanos = False
         self.camera_1.modo_mixto = False
         self.clearDynamicElements()
-        labels_texts = [
-            "Argollas detectadas: 0",
-            "Tensores detectados: 0",
-            "Zetas detectadas: 0",
-            "Ochos detectados: 0",
-            "Piezas defectuosas: 0"
-        ]
+        self.family_labels.clear()
 
-        start_x = 825
-        start_y = 550
-        spacing_y = 35
+        familias = ["Argollas", "Tensores", "Zetas", "Zetaredonda", "Piezas defectuosas"]
+        start_x, start_y, spacing_y = 825, 550, 35
 
-        for i, text in enumerate(labels_texts):
-            lbl = tk.Label(self.master, text=text, font=self.fontCounters, fg="black")
-            if text == "Piezas defectuosas: 0":
-                lbl.config(fg="red")
+        for i, fam in enumerate(familias):
+            # Crear variable dinámica
+            var = tk.StringVar(value=f"{fam} detectadas: 0")
+            self.family_labels[fam] = var
+
+            lbl = tk.Label(self.master, textvariable=var, font=self.fontCounters,
+                        fg="red" if "defectuosas" in fam.lower() else "black")
             lbl.place(x=start_x, y=start_y + i * spacing_y)
             self.dynamic_labels.append(lbl)
-
-    def showTamanos(self):
-        """Muestra botones para las categorías de tamaño."""
-
-        self.modo_familias = False
-        self.modo_tamanos = True
-        self.modo_mixto = False
-        self.camera_1.modo_familias = False
-        self.camera_1.modo_tamanos = True
-        self.camera_1.modo_mixto = False
-        self.clearDynamicElements()
-        sizes = ["Tamaño argollas", "Tamaño tensores", "Tamaño zetas", "Tamaño zetas R"]
-        start_x = 825
-        start_y = 550
-        spacing_y = 50
-
-        for i, size in enumerate(sizes):
-            btn = tk.Button(self.master, text=size, width=20, bg="#1E70AE", fg="white")
-            btn.place(x=start_x, y=start_y + i * spacing_y)
-            self.dynamic_buttons.append(btn)
+   
 
     def showMixto(self):
-        """Muestra los contadores de familias y sus tamaños en dos columnas."""
+        """Muestra los contadores de familias y tamaños en dos columnas."""
         self.modo_familias = False
-        self.modo_tamanos = False
         self.modo_mixto = True
         self.camera_1.modo_familias = False
-        self.camera_1.modo_tamanos = False
         self.camera_1.modo_mixto = True
-
         self.clearDynamicElements()
+        self.mixed_labels.clear()
 
         familias_left = ["Argollas", "Tensores"]
-        familias_right = ["Zetas", "Ochos"]
+        familias_right = ["Zetas", "Zetaredonda"]
         tamanos = ["S", "M", "L", "XL"]
 
-        # Posiciones base
-        start_x_left = 825
-        start_x_right = 1200
-        start_x_middle = 1000
-        start_y = 550
-        spacing_y = 60      # distancia vertical entre bloques
-        spacing_x = 60      # separación horizontal entre tamaños
-        row_gap = 100       # separación entre grupos de familias
+        # --- Posiciones ---
+        start_x_left, start_x_right, start_x_middle = 825, 1200, 1000
+        start_y, spacing_y, spacing_x, row_gap = 550, 60, 60, 100
 
         # --- Columna izquierda ---
         for i, fam in enumerate(familias_left):
             y_offset = start_y + i * row_gap
+            self.mixed_labels[fam] = {}
 
-            # Label principal
             lbl_title = tk.Label(self.master, text=f"{fam} detectadas:", font=self.fontCounters, fg="black")
             lbl_title.place(x=start_x_left, y=y_offset)
             self.dynamic_labels.append(lbl_title)
 
-            # Labels de tamaños (debajo del título)
             for j, t in enumerate(tamanos):
-                lbl_size = tk.Label(self.master, text=f"{t}: 0", font=self.fontLabelText)
+                var = tk.StringVar(value=f"{t}: 0")
+                self.mixed_labels[fam][t] = var
+                lbl_size = tk.Label(self.master, textvariable=var, font=self.fontLabelText)
                 lbl_size.place(x=start_x_left + j * spacing_x + 40, y=y_offset + 30)
                 self.dynamic_labels.append(lbl_size)
 
         # --- Columna derecha ---
         for i, fam in enumerate(familias_right):
             y_offset = start_y + i * row_gap
+            self.mixed_labels[fam] = {}
 
             lbl_title = tk.Label(self.master, text=f"{fam} detectadas:", font=self.fontCounters, fg="black")
             lbl_title.place(x=start_x_right, y=y_offset)
             self.dynamic_labels.append(lbl_title)
 
             for j, t in enumerate(tamanos):
-                lbl_size = tk.Label(self.master, text=f"{t}: 0", font=self.fontLabelText)
+                var = tk.StringVar(value=f"{t}: 0")
+                self.mixed_labels[fam][t] = var
+                lbl_size = tk.Label(self.master, textvariable=var, font=self.fontLabelText)
                 lbl_size.place(x=start_x_right + j * spacing_x + 40, y=y_offset + 30)
                 self.dynamic_labels.append(lbl_size)
 
-        # --- Solo "Defectuosas detectadas" sin tamaños ---
-        lbl_def = tk.Label(self.master, text="Defectuosas detectadas: 0", font=self.fontCounters, fg="red")
+        # --- Defectuosas ---
+
+        self.defective_var = tk.StringVar(value="Defectuosas detectadas: 0")
+        lbl_def = tk.Label(self.master, textvariable=self.defective_var, font=self.fontCounters, fg="red")
         lbl_def.place(x=start_x_middle, y=start_y + 2 * row_gap)
         self.dynamic_labels.append(lbl_def)
 

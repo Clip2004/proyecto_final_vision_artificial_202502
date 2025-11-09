@@ -40,10 +40,6 @@ class RunCamera(threading.Thread):
 
         
 
-        # self.modo_familias = False
-        # self.modo_tamanos = False
-        # self.modo_mixto = False
-
         self.argolla_model = None
         self.tensor_model = None
         self.zetas_model = None
@@ -226,9 +222,6 @@ class RunCamera(threading.Thread):
 
                 return None
 
-            # if self.modo_tamanos:
-
-            #     features = self.extract_features_tamanos(familia, char_image, cnt)
       
             # Verificar que las características no estén vacías
             if features is None or len(features) == 0:
@@ -271,7 +264,7 @@ class RunCamera(threading.Thread):
         print("\n=== PROCESS FRAME START ===")
 
         if self.familias_model is None:
-            print("⚠️ Modelo de familias no cargado")
+            print(" Modelo de familias no cargado")
             self.annotated_frame = frame.copy()
             return
         
@@ -284,7 +277,7 @@ class RunCamera(threading.Thread):
             self.annotated_frame = frame.copy()
             return
         
-        print("✅ Frame procesado")
+        print(" Frame procesado")
 
         self.cleanup_old_candidates()
 
@@ -292,19 +285,19 @@ class RunCamera(threading.Thread):
 
         # 1) CONVERSIÓN A GRIS
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        print("✅ Convertido a gris")
+        print(" Convertido a gris")
 
         blur = cv2.GaussianBlur(gray, (5,5), 0)
         # 2) BINARIZACIÓN
         _, mask = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
-        print("✅ Aplicado Otsu Thresholding")
+        print(" Aplicado Otsu Thresholding")
 
         cv2.imshow("Mask OTSU", mask)
         cv2.waitKey(1)
 
         # 3) BUSCAR CONTORNOS
         conts, _ = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-        print(f"🔍 Contornos detectados: {len(conts)}")
+        print(f" Contornos detectados: {len(conts)}")
 
 
         img_bin_or = mask.copy()
@@ -335,7 +328,7 @@ class RunCamera(threading.Thread):
                 elif cx < self.line1_x and self.ebilla_detected:
                     self.object_counter += 1
                     self.ebilla_detected = False
-                    print(f"✅ Objeto #{self.object_counter} contado")
+                    print(f" Objeto #{self.object_counter} contado")
 
         # Dibujar líneas de referencia
         cv2.line(annotated, (self.line1_x, 0), (self.line1_x, frame.shape[0]), (255, 0, 0), 2)
@@ -348,47 +341,47 @@ class RunCamera(threading.Thread):
             print(f"   ➜ Contorno área: {area}")
 
             if area < 2000:   
-                print(f"   ❌ Contorno ignorado (área pequeña)")
+                print(f"    Contorno ignorado (área pequeña)")
                 continue
 
-            print(f"✅ Contorno válido (área={area})")
+            print(f" Contorno válido (área={area})")
 
             # ROI bounding box
             x, y, w, h = cv2.boundingRect(cnt)
-            print(f"📦 ROI coords: x={x}, y={y}, w={w}, h={h}")
+            print(f" ROI coords: x={x}, y={y}, w={w}, h={h}")
 
             roi = mask[y:y+h, x:x+w]
 
             cv2.imshow("ROI original", roi)
 
             if roi.size == 0:
-                print("❌ ROI vacío, saltando")
+                print(" ROI vacío, saltando")
                 continue
 
             roi_resized = cv2.resize(roi, (128,128), interpolation=cv2.INTER_NEAREST)
 
-            print("✅ ROI redimensionado")
-            print(self.modo_familias, self.modo_tamanos, self.modo_mixto)
+            print(" ROI redimensionado")
+           
             cv2.imshow("ROI" , roi_resized)
             cv2.waitKey(2)
 
             # --- EXTRAER FEATURES Y CLASIFICAR ---
             conts_roi, _ = cv2.findContours(roi_resized, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             if len(conts_roi)==0:
-                print("⚠️ No contorno dentro del ROI")
+                print(" No contorno dentro del ROI")
                 continue
 
             cnt_roi = max(conts_roi, key=cv2.contourArea)
 
             nombre_clase = self.predict_character_familias(roi_resized, cnt_roi)
 
-            print(f"🧩 ROI shape: {roi_resized.shape}, contorno área: {cv2.contourArea(cnt_roi)}")
+            print(f" ROI shape: {roi_resized.shape}, contorno área: {cv2.contourArea(cnt_roi)}")
 
 
-            print(f"🔎 Resultado predict_character_familias: {nombre_clase}")
+            print(f" Resultado predict_character_familias: {nombre_clase}")
 
             if nombre_clase is None:
-                print("❌ No se obtuvo clase, continuar")
+                print(" No se obtuvo clase, continuar")
                 continue
 
             detected_any = True
@@ -401,7 +394,7 @@ class RunCamera(threading.Thread):
             self.detected_object_frame = frame[y:y+h, x:x+w].copy()
 
         if not detected_any:
-            print("⚠️ Ningún objeto clasificado en este frame")
+            print(" Ningún objeto clasificado en este frame")
 
         self.annotated_frame = annotated
         print("=== PROCESS FRAME END ===")
