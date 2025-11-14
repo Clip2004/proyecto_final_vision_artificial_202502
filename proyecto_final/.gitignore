@@ -35,6 +35,9 @@ yolo_runs/
 *.mov
 *.mkv
 *.jpg
+*.png
+*.txt
+*.json
 
 # ==== MISC ====
 *.zip
