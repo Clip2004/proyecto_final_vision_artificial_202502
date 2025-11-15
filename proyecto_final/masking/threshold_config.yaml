@@ -1,0 +1,7 @@
+method: otsu
+block_size: 0
+c_value: 0
+blur_size: 49
+morph_close_size: 0
+morph_open_size: 0
+invert: false
